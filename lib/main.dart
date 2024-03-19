@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:contacts_service/contacts_service.dart';
 
 void main() {
   runApp( MaterialApp( home: MyApp() ) );
@@ -12,10 +13,16 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  List<Contact> names = [];
+
   getPermission() async {
     var status = await Permission.contacts.status;
     if (status.isGranted) {
-      print('허락됨');
+      var contacts = await ContactsService.getContacts();
+      setState(() {
+        names = contacts;
+      });
+
     } else if (status.isDenied) {
       print('거절됨');
       Permission.contacts.request();
@@ -23,15 +30,11 @@ class _MyAppState extends State<MyApp> {
     }
   }
 
-  var frandCount = 3;
-  var names = ['김영숙', '홍길동', '치킨집'];
-
-
-  frandAdd(frandName) {
-    setState(() {
-      names.add(frandName);
-      frandCount++;
-    });
+  frandAdd(frandName) async {
+    var newPerson = Contact();
+    newPerson.givenName = frandName;
+    await ContactsService.addContact(newPerson);
+    getPermission();
   }
 
   @override
@@ -134,11 +137,11 @@ class _MyAppState extends State<MyApp> {
         floatingActionButton: FloatingActionButton(
           onPressed: (){
             showDialog(context: context, builder: (context){
-              return DialogUI(frandCount: frandCount, frandAddFn: frandAdd);
+              return DialogUI(frandCount: names.length, frandAddFn: frandAdd, names: names);
             });
           },
         ),
-        appBar: AppBar(title: Text(frandCount.toString()), centerTitle: false, actions: [
+        appBar: AppBar(title: Text(names.length.toString()), centerTitle: false, actions: [
           IconButton(onPressed: (){
             getPermission();
           }, icon: Icon(Icons.contacts))
@@ -149,10 +152,11 @@ class _MyAppState extends State<MyApp> {
 }
 
 class DialogUI extends StatelessWidget {
-  DialogUI({super.key, this.frandCount, this.frandAddFn});
+  DialogUI({super.key, this.frandCount, this.frandAddFn, this.names});
   final frandCount;
   final frandAddFn;
   var inputName = TextEditingController();
+  final names;
 
   @override
   Widget build(BuildContext context) {
@@ -162,8 +166,11 @@ class DialogUI extends StatelessWidget {
         height: 300,
         child: Column(
           children: [
-            TextField( controller: inputName, ),
+            TextField( decoration: InputDecoration(
+              icon: Icon(Icons.star),
+            ), controller: inputName ),
             TextButton(onPressed: (){
+              print(names);
               frandAddFn(inputName.text);
               Navigator.pop(context);
             }, child: Text('완료')),
@@ -194,9 +201,10 @@ class _ShopItemState extends State<ShopItem> {
     return ListView.builder(
         itemCount: widget.names.length,
         itemBuilder: (context, i){
+          print(widget.names[i]);
           return ListTile(
             leading: Image.asset('assets/dog.JPG'),
-            title: Text(widget.names[i]),
+            title: Text(widget.names[i].givenName ?? '이름 없음'),
           );
           // ListTile(
           //   leading: Text(like[i].toString()),
